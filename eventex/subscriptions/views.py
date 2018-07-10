@@ -7,6 +7,11 @@ from django.template.loader import render_to_string
 from eventex.subscriptions.forms import SubscriptionForm
 from eventex.subscriptions.models import Subscription
 
+MASK = 0xABCDEFAB
+
+def apply_mask(n):
+    return n ^ MASK
+
 
 def subscribe(request):
     if request.method == 'POST':
@@ -24,8 +29,6 @@ def create(request):
 
     subscription = Subscription.objects.create(**form.cleaned_data)
 
-    masked_id = subscription.pk ^ 0xABCDEFAB
-
     #send subscription email
     _send_mail('Confirmação de Inscrição',
                settings.DEFAULT_FROM_EMAIL,
@@ -33,18 +36,17 @@ def create(request):
                'subscriptions/subscription_email.txt',
                {'subscription': subscription})
 
-    return HttpResponseRedirect('/inscricao/{}/'.format(masked_id))
+    return HttpResponseRedirect('/inscricao/{}/'.format(apply_mask(subscription.pk)))
 
 
 def new(request):
     return render(request, 'subscriptions/subscription_form.html',
                   {'form': SubscriptionForm()})
 
-
-def detail(request, masked_id):
+# path('inscricao/<masked:id>/', ...)
+def detail(request, id):
     try:
-        unmasked_id = masked_id ^ 0xABCDEFAB
-        subscription = Subscription.objects.get(pk=unmasked_id)
+        subscription = Subscription.objects.get(pk=id)
     except Subscription.DoesNotExist:
         raise Http404
 
